@@ -1,0 +1,7 @@
+migration:
+  Location: asd
+  Table: asd
+datasource:
+  url: mysql://192.168.64.3:30846/user
+  user: root
+  password: asd

@@ -86,7 +86,6 @@ func (m *mysqlDriver) SchemaExists() (bool, error) {
 
 	return exists, err
 
-
 }
 
 func (m *mysqlDriver) CreateSchema() error {
@@ -162,5 +161,3 @@ func (m *mysqlDriver) Ping() error {
 
 	return db.Ping()
 }
-
-

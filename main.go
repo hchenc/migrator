@@ -17,6 +17,7 @@ package main
 
 import (
 	"github.com/hchenc/migrator/cmd"
+	_ "github.com/hchenc/migrator/cmd/app"
 	_ "github.com/hchenc/migrator/pkg/drivers/mysql"
 )
 

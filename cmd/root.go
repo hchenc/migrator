@@ -17,36 +17,35 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var cfgFile string
 
-var migrationLocation string
-var migrationTable string
-var databaseUrl string
-var databaseUser string
-var databasePass string
+var Flages MigratorFlages
+var MigrationLocation string
+var MigrationTable string
+var DatabaseUrl string
+var DatabaseUser string
+var DatabasePass string
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
+// RootCmd represents the base command when called without any subcommands
+var RootCmd = &cobra.Command{
 	Use:   "migrator",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "A lightweight database migration tool",
+	Long: `A lightweight database migration tool which 
+provide command cli and rest api to manage the versiond database.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+// This is called by main.main(). It only needs to happen once to the RootCmd.
 func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
+	cobra.CheckErr(RootCmd.Execute())
 }
+
 
 func init() {
 	cobra.OnInitialize(initConfig)
@@ -55,33 +54,28 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVarP(&migrationLocation, "migration-locations", "d", "./db/migration", "config file (default is ./db/migration)")
-	rootCmd.PersistentFlags().StringVarP(&migrationTable, "migration-table", "t", "schema_history", "migration history (default is schema_history)")
-	rootCmd.PersistentFlags().StringVarP(&databaseUrl, "database-url", "l", "", "database url")
-	rootCmd.PersistentFlags().StringVarP(&databaseUser, "database-user", "u", "", "database user")
-	rootCmd.PersistentFlags().StringVarP(&databasePass, "database-pass", "p", "", "database password")
+	//RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./.migrator.yaml","config file (default is ./.migrator.yaml)")
+
+	RootCmd.PersistentFlags().StringVarP(&MigrationLocation, "migration-location", "d", "./db/migration", "config file (default is ./db/migration)")
+	RootCmd.PersistentFlags().StringVarP(&MigrationTable, "migration-table", "t", "schema_history", "migration history (default is schema_history)")
+	RootCmd.PersistentFlags().StringVarP(&DatabaseUrl, "database-url", "l", "","database url")
+	RootCmd.PersistentFlags().StringVarP(&DatabaseUser, "database-user", "u",  "","database user")
+	RootCmd.PersistentFlags().StringVarP(&DatabasePass, "database-password", "p","",  "database password")
+
 }
 
 //TODO
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	//if cfgFile != "" {
-	//	// Use config file from the flag.
-	//	viper.SetConfigFile(cfgFile)
-	//} else {
-	//	// Find home directory.
-	//	home, err := homedir.Dir()
-	//	cobra.CheckErr(err)
-	//
-	//	// Search config in home directory with name ".migrator" (without extension).
-	//	viper.AddConfigPath(home)
-	//	viper.SetConfigName(".migrator")
-	//}
-	//
+
+	viper.SetConfigFile(cfgFile)
 	//viper.AutomaticEnv() // read in environment variables that match
 	//
 	//// If a config file is found, read it in.
 	//if err := viper.ReadInConfig(); err == nil {
 	//	fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	//	if err := viper.Unmarshal(&Flages); err != nil {
+	//		panic(err)
+	//	}
 	//}
 }

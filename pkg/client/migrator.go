@@ -1,4 +1,4 @@
-package migrator
+package client
 
 import (
 	"database/sql"
@@ -29,16 +29,6 @@ type Migrator struct {
 type StatusResult struct {
 	Filename string
 	Applied  bool
-}
-
-func New(databaseURL *url.URL) *Migrator {
-	return &Migrator{
-		AutoDumpSchema:     true,
-		DatabaseUrl:        databaseURL,
-		MigrationsLocation: constants.DefaultMigrationsLocation,
-		MigrationsTable:    constants.DefaultMigrationsTable,
-		Log:                os.Stdout,
-	}
 }
 
 func (migrator *Migrator) New(name string) error {
@@ -73,7 +63,7 @@ func (migrator *Migrator) New(name string) error {
 	return err
 }
 
-func NewMigrator(databaseUrl *url.URL, user, pass, location, table string, log io.Writer, dump bool) *Migrator {
+func NewMigratorClient(databaseUrl *url.URL, user, pass, location, table string, log io.Writer, dump bool) *Migrator {
 	migrator := &Migrator{
 		AutoDumpSchema:     dump,
 		DatabaseUrl:        databaseUrl,
@@ -97,29 +87,91 @@ func NewMigrator(databaseUrl *url.URL, user, pass, location, table string, log i
 }
 
 func (migrator *Migrator) Migrate() error {
-
-	return migrator.migrate(migrator.backend)
+	return migrator.migrate(0)
 }
 
-func (migrator *Migrator) migrate(backend backends.Interface) error {
-	files, err := utils.FindMigrationFiles(migrator.MigrationsLocation, utils.MigrationFileRegexp)
+func (migrator *Migrator) Status(quiet bool) (int, error) {
+	results, err := migrator.CheckMigrationsStatus()
 	if err != nil {
-		return err
+		return -1, err
+	}
+	var totalApplied int
+	var line string
+
+	for _, res := range results {
+		if res.Applied {
+			line = fmt.Sprintf("[V] %s", res.Filename)
+			totalApplied++
+		} else {
+			line = fmt.Sprintf("[X] %s", res.Filename)
+		}
+		if !quiet {
+			fmt.Fprintln(migrator.Log, line)
+		}
 	}
 
-	if len(files) == 0 {
-		return fmt.Errorf("no migration files found")
+	totalPending := len(results) - totalApplied
+	if !quiet {
+		fmt.Fprintln(migrator.Log)
+		fmt.Fprintf(migrator.Log, "Applied: %d\n", totalApplied)
+		fmt.Fprintf(migrator.Log, "Pending: %d\n", totalPending)
 	}
 
-	sqlDB, err := migrator.openDatabaseForMigration(backend)
+	return totalPending, nil
+}
+
+func (migrator *Migrator) Up(step uint) error {
+	return migrator.migrate(int(step))
+}
+
+func (migrator *Migrator) CheckMigrationsStatus() ([]StatusResult, error) {
+	files := utils.MustFindMigrationFiles(migrator.MigrationsLocation, utils.MigrationFileRegexp)
+
+	sqlDB, err := migrator.openDatabaseForMigration()
+	defer sqlDB.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	applied, err := migrator.backend.SelectMigrations(sqlDB, -1)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []StatusResult
+
+	for _, filename := range files {
+		ver := utils.MigrationVersion(filename)
+		res := StatusResult{Filename: filename}
+		if ok := applied[ver]; ok {
+			res.Applied = true
+		} else {
+			res.Applied = false
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func (migrator *Migrator) migrate(step int) error {
+	files := utils.MustFindMigrationFiles(migrator.MigrationsLocation, utils.MigrationFileRegexp)
+
+	sqlDB, err := migrator.openDatabaseForMigration()
 	defer sqlDB.Close()
 	if err != nil {
 		return err
 	}
 
-	applied, err := backend.SelectMigrations(sqlDB, -1)
+	applied, err := migrator.backend.SelectMigrations(sqlDB, -1)
 	if err != nil {
 		return err
+	}
+
+	if step == 0 {
+	} else if slice := len(applied) + step; slice < len(files) {
+		files = files[0:slice]
 	}
 
 	for _, filename := range files {
@@ -146,7 +198,7 @@ func (migrator *Migrator) migrate(backend backends.Interface) error {
 			}
 
 			// record migration
-			return backend.InsertMigration(tx, ver)
+			return migrator.backend.InsertMigration(tx, ver)
 		}
 
 		if up.Options.Transaction() {
@@ -164,19 +216,86 @@ func (migrator *Migrator) migrate(backend backends.Interface) error {
 
 	// automatically update schema file, silence errors
 	if migrator.AutoDumpSchema {
-		_ = migrator.dumpSchema(backend)
+		_ = migrator.dumpSchema()
 	}
 
 	return nil
 }
 
-func (migrator *Migrator) openDatabaseForMigration(backend backends.Interface) (*sql.DB, error) {
-	sqlDB, err := backend.OpenDatabase()
+func (migrator *Migrator) Rollback() error {
+	return migrator.down(1)
+}
+
+func (migrator *Migrator) Down(step uint) error {
+	return migrator.down(int(step))
+}
+
+func (migrator *Migrator) down(step int) error {
+	sqlDB, err := migrator.openDatabaseForMigration()
+	defer sqlDB.Close()
+	if err != nil {
+		return err
+	}
+	for s := 0; s < step; s++ {
+		applied, err := migrator.backend.SelectMigrations(sqlDB, 1)
+		// grab most recent applied migration (applied has len=1)
+		latest := ""
+		for ver := range applied {
+			latest = ver
+		}
+		if latest == "" {
+			return fmt.Errorf("can't rollback: no migrations have been applied")
+		}
+
+		filename := utils.MustFindMigrationFile(migrator.MigrationsLocation, latest)
+
+		fmt.Fprintf(migrator.Log, "Rolling back: %s\n", filename)
+
+		_, down, err := parseMigration(filepath.Join(migrator.MigrationsLocation, filename))
+		if err != nil {
+			return err
+		}
+
+		execMigration := func(tx backends.Transaction) error {
+			// rollback migration
+			result, err := tx.Exec(down.Contents)
+			if err != nil {
+				return err
+			} else if migrator.Verbose {
+				migrator.printVerbose(result)
+			}
+
+			// remove migration record
+			return migrator.backend.DeleteMigration(tx, latest)
+		}
+
+		if down.Options.Transaction() {
+			// begin transaction
+			err = doTransaction(sqlDB, execMigration)
+		} else {
+			// run outside of transaction
+			err = execMigration(sqlDB)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	// automatically update schema file, silence errors
+	if migrator.AutoDumpSchema {
+		_ = migrator.dumpSchema()
+	}
+
+	return nil
+}
+
+func (migrator *Migrator) openDatabaseForMigration() (*sql.DB, error) {
+	sqlDB, err := migrator.backend.OpenDatabase()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := backend.CreateMigrationsTable(sqlDB); err != nil {
+	if err := migrator.backend.CreateMigrationsTable(sqlDB); err != nil {
 		defer sqlDB.Close()
 		return nil, err
 	}
@@ -221,15 +340,15 @@ func doTransaction(sqlDB *sql.DB, txFunc func(backends.Transaction) error) error
 	return tx.Commit()
 }
 
-func (migrator *Migrator) dumpSchema(backend backends.Interface) error {
+func (migrator *Migrator) dumpSchema() error {
 
-	sqlDB, err := migrator.openDatabaseForMigration(backend)
+	sqlDB, err := migrator.openDatabaseForMigration()
 	defer sqlDB.Close()
 	if err != nil {
 		return err
 	}
 
-	schema, err := backend.DumpSchema(sqlDB)
+	schema, err := migrator.backend.DumpSchema(sqlDB)
 	if err != nil {
 		return err
 	}

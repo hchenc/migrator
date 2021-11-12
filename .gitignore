@@ -5,7 +5,9 @@
 *.so
 *.dylib
 bin
-
+migrator
+pkg/.DS_Store
+.DS_Store
 db
 # Test binary, build with `go test -c`
 *.test

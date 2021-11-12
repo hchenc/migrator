@@ -17,10 +17,10 @@ var WhitespaceRegExp = regexp.MustCompile(`\s+`)
 var OptionSeparatorRegExp = regexp.MustCompile(`:`)
 var BlockDirectiveRegExp = regexp.MustCompile(`^--\s*migrate:[up|down]]`)
 
-func FindMigrationFiles(dir string, re *regexp.Regexp) ([]string, error) {
+func MustFindMigrationFiles(dir string, re *regexp.Regexp) []string {
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("could not find migrations directory `%s`", dir)
+		panic(fmt.Sprintf("could not find migrations directory `%s`", dir))
 	}
 
 	matches := []string{}
@@ -38,8 +38,24 @@ func FindMigrationFiles(dir string, re *regexp.Regexp) ([]string, error) {
 	}
 
 	sort.Strings(matches)
+	if len(matches) == 0 {
+		panic(fmt.Sprintf("no migration files found"))
+	}
 
-	return matches, nil
+	return matches
+}
+
+func MustFindMigrationFile(dir string, ver string) string {
+	if ver == "" {
+		panic("migration version is required")
+	}
+
+	ver = regexp.QuoteMeta(ver)
+	re := regexp.MustCompile(fmt.Sprintf(`^%s.*\.sql$`, ver))
+
+	files := MustFindMigrationFiles(dir, re)
+
+	return files[0]
 }
 
 func MigrationVersion(filename string) string {

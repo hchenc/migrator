@@ -13,12 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package app
+package options
 
 import (
 	"fmt"
 	migrate "github.com/hchenc/migrator/cmd"
-
 	"github.com/hchenc/migrator/pkg/client"
 	"net/url"
 	"os"
@@ -26,30 +25,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var up uint
+var dump bool
 
-// upCmd represents the up command
-var upCmd = &cobra.Command{
-	Use:   "up",
-	Short: "A brief description of your command",
+// migrateCmd represents the migrate command
+var migrateCmd = &cobra.Command{
+	Use:   "migrate",
+	Short: "migrate to the latest version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("----------------")
-		fmt.Println("start to up")
+		fmt.Println("start to migrate")
 		dataUrl, err := url.Parse(migrate.DatabaseUrl)
 		if err != nil {
 			panic(err)
 		}
 		mg := client.NewMigratorClient(dataUrl, migrate.DatabaseUser, migrate.DatabasePass, migrate.MigrationLocation, migrate.MigrationTable, os.Stdout, dump)
-		err = mg.Up(up)
+		err = mg.Migrate()
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("end to up")
+		fmt.Println("end to migrate")
 		fmt.Println("----------------")
 	},
 }
 
 func init() {
-	migrate.RootCmd.AddCommand(upCmd)
-	upCmd.Flags().UintVarP(&up, "step", "s", 1, "up step to migrate")
+	migrate.RootCmd.AddCommand(migrateCmd)
+	migrateCmd.Flags().BoolVarP(&dump, "autodump", "a", false, "auto dump schema before migrate")
 }

@@ -16,13 +16,15 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
+	"strings"
 )
 
 var cfgFile string
 
-var Flages MigratorFlages
 var MigrationLocation string
 var MigrationTable string
 var DatabaseUrl string
@@ -46,7 +48,6 @@ func Execute() {
 	cobra.CheckErr(RootCmd.Execute())
 }
 
-
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -54,28 +55,65 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	//RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./.migrator.yaml","config file (default is ./.migrator.yaml)")
+	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./.migrator.yaml", "config file (default is ./.migrator.yaml)")
 
 	RootCmd.PersistentFlags().StringVarP(&MigrationLocation, "migration-location", "d", "./db/migration", "config file (default is ./db/migration)")
 	RootCmd.PersistentFlags().StringVarP(&MigrationTable, "migration-table", "t", "schema_history", "migration history (default is schema_history)")
-	RootCmd.PersistentFlags().StringVarP(&DatabaseUrl, "database-url", "l", "","database url")
-	RootCmd.PersistentFlags().StringVarP(&DatabaseUser, "database-user", "u",  "","database user")
-	RootCmd.PersistentFlags().StringVarP(&DatabasePass, "database-password", "p","",  "database password")
+	RootCmd.PersistentFlags().StringVarP(&DatabaseUrl, "database-url", "l", "", "database url")
+	RootCmd.PersistentFlags().StringVarP(&DatabaseUser, "database-user", "u", "", "database user")
+	RootCmd.PersistentFlags().StringVarP(&DatabasePass, "database-password", "p", "", "database password")
 
 }
 
-//TODO
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 
 	viper.SetConfigFile(cfgFile)
-	//viper.AutomaticEnv() // read in environment variables that match
-	//
-	//// If a config file is found, read it in.
-	//if err := viper.ReadInConfig(); err == nil {
-	//	fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-	//	if err := viper.Unmarshal(&Flages); err != nil {
-	//		panic(err)
-	//	}
-	//}
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			fmt.Fprintln(os.Stderr, "Config file not found: ", viper.ConfigFileUsed())
+		} else {
+			fmt.Fprintln(os.Stderr, "Error while loading config file: ", viper.ConfigFileUsed(), err.Error())
+		}
+	}
+	if strings.HasSuffix(cfgFile, ".properties") {
+		if err := viper.ReadInConfig(); err == nil {
+			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+			for flag, value := range map[*string]string{
+				&MigrationLocation: "migrator.location",
+				&MigrationTable:    "migrator.table",
+				&DatabaseUrl:       "spring.datasource.url",
+				&DatabaseUser:      "spring.datasource.username",
+				&DatabasePass:      "spring.datasource.password",
+			} {
+				if viper.GetString(value) != "" {
+					fmt.Println(viper.GetString(value))
+					*flag = viper.GetString(value)
+				}
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, fmt.Sprintf("Error while loading config file: %s", viper.ConfigFileUsed()))
+			fmt.Fprintln(os.Stderr, "Error: ", err.Error())
+		}
+	} else {
+		if err := viper.ReadInConfig(); err == nil {
+			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+			for flag, value := range map[*string]string{
+				&MigrationLocation: "migration-location",
+				&MigrationTable:    "migration-table",
+				&DatabaseUrl:       "database-url",
+				&DatabaseUser:      "database-user",
+				&DatabasePass:      "database-password",
+			} {
+				if viper.GetString(value) != "" {
+					fmt.Println(viper.GetString(value))
+					*flag = viper.GetString(value)
+				}
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, fmt.Sprintf("Error while loading config file: %s", viper.ConfigFileUsed()))
+			fmt.Fprintln(os.Stderr, "Error: ", err.Error())
+		}
+	}
 }

@@ -29,7 +29,7 @@ import (
 // rollbackCmd represents the rollback command
 var rollbackCmd = &cobra.Command{
 	Use:   "rollback",
-	Short: "rollback the most recent migration",
+	Short: "rollback to the most recent version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("----------------")
 		fmt.Println("start to rollback")

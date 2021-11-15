@@ -34,7 +34,7 @@ var newCmd = &cobra.Command{
 	Short: "generate a new migration file",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("----------------")
-		fmt.Println("start to generate migration file")
+		fmt.Println("start to generate migration script")
 		dataUrl, err := url.Parse(migrate.DatabaseUrl)
 		if err != nil {
 			panic(err)
@@ -44,7 +44,7 @@ var newCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("end to generate migration file")
+		fmt.Println("end to generate migration script")
 		fmt.Println("----------------")
 	},
 }

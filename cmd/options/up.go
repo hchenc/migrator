@@ -31,7 +31,7 @@ var up uint
 // upCmd represents the up command
 var upCmd = &cobra.Command{
 	Use:   "up",
-	Short: "A brief description of your command",
+	Short: "migrate target step to target version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("----------------")
 		fmt.Println("start to up")

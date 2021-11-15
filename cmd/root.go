@@ -36,7 +36,7 @@ var RootCmd = &cobra.Command{
 	Use:   "migrator",
 	Short: "A lightweight database migration tool",
 	Long: `A lightweight database migration tool which 
-provide command cli and rest api to manage the versiond database.`,
+provide command cli and rest api to manage the database.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -55,10 +55,10 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./.migrator.yaml", "config file (default is ./.migrator.yaml)")
+	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./.migrator.yaml", "migrator config file")
 
-	RootCmd.PersistentFlags().StringVarP(&MigrationLocation, "migration-location", "d", "./db/migration", "config file (default is ./db/migration)")
-	RootCmd.PersistentFlags().StringVarP(&MigrationTable, "migration-table", "t", "schema_history", "migration history (default is schema_history)")
+	RootCmd.PersistentFlags().StringVarP(&MigrationLocation, "migration-location", "d", "./db/migration", "migration file directory where to store migration script")
+	RootCmd.PersistentFlags().StringVarP(&MigrationTable, "migration-table", "t", "schema_history", "database table name where to store schema change record")
 	RootCmd.PersistentFlags().StringVarP(&DatabaseUrl, "database-url", "l", "", "database url")
 	RootCmd.PersistentFlags().StringVarP(&DatabaseUser, "database-user", "u", "", "database user")
 	RootCmd.PersistentFlags().StringVarP(&DatabasePass, "database-password", "p", "", "database password")
@@ -88,10 +88,10 @@ func initConfig() {
 				&DatabasePass:      "spring.datasource.password",
 			} {
 				if viper.GetString(value) != "" {
-					fmt.Println(viper.GetString(value))
 					*flag = viper.GetString(value)
 				}
 			}
+			DatabaseUrl = strings.Split(DatabaseUrl[5:], "?")[0]
 		} else {
 			fmt.Fprintln(os.Stderr, fmt.Sprintf("Error while loading config file: %s", viper.ConfigFileUsed()))
 			fmt.Fprintln(os.Stderr, "Error: ", err.Error())

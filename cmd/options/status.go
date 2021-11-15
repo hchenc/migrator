@@ -31,7 +31,7 @@ var quiet bool
 // statusCmd represents the status command
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "list applied and pending migrations",
+	Short: "list applied and pending migration script",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("----------------")
 		dataUrl, err := url.Parse(migrate.DatabaseUrl)

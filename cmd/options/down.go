@@ -30,7 +30,7 @@ var down uint
 // downCmd represents the down command
 var downCmd = &cobra.Command{
 	Use:   "down",
-	Short: "rollback target step to target migration",
+	Short: "rollback target step to target version",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("----------------")
 		fmt.Println("start to down")

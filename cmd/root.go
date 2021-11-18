@@ -55,7 +55,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./.migrator.yaml", "migrator config file")
+	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./src/main/resources/application.properties", "migrator config file")
 
 	RootCmd.PersistentFlags().StringVarP(&MigrationLocation, "migration-location", "d", "./db/migration", "migration file directory where to store migration script")
 	RootCmd.PersistentFlags().StringVarP(&MigrationTable, "migration-table", "t", "schema_history", "database table name where to store schema change record")
@@ -76,44 +76,18 @@ func initConfig() {
 		} else {
 			fmt.Fprintln(os.Stderr, "Error while loading config file: ", viper.ConfigFileUsed(), err.Error())
 		}
-	}
-	if strings.HasSuffix(cfgFile, ".properties") {
-		if err := viper.ReadInConfig(); err == nil {
-			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-			for flag, value := range map[*string]string{
-				&MigrationLocation: "migrator.location",
-				&MigrationTable:    "migrator.table",
-				&DatabaseUrl:       "spring.datasource.url",
-				&DatabaseUser:      "spring.datasource.username",
-				&DatabasePass:      "spring.datasource.password",
-			} {
-				if viper.GetString(value) != "" {
-					*flag = viper.GetString(value)
-				}
-			}
-			DatabaseUrl = strings.Split(DatabaseUrl[5:], "?")[0]
-		} else {
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("Error while loading config file: %s", viper.ConfigFileUsed()))
-			fmt.Fprintln(os.Stderr, "Error: ", err.Error())
-		}
 	} else {
-		if err := viper.ReadInConfig(); err == nil {
-			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-			for flag, value := range map[*string]string{
-				&MigrationLocation: "migration-location",
-				&MigrationTable:    "migration-table",
-				&DatabaseUrl:       "database-url",
-				&DatabaseUser:      "database-user",
-				&DatabasePass:      "database-password",
-			} {
-				if viper.GetString(value) != "" {
-					fmt.Println(viper.GetString(value))
-					*flag = viper.GetString(value)
-				}
+		for flag, value := range map[*string]string{
+			&MigrationLocation: "migrator.location",
+			&MigrationTable:    "migrator.table",
+			&DatabaseUrl:       "spring.datasource.url",
+			&DatabaseUser:      "spring.datasource.username",
+			&DatabasePass:      "spring.datasource.password",
+		} {
+			if viper.GetString(value) != "" {
+				*flag = viper.GetString(value)
 			}
-		} else {
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("Error while loading config file: %s", viper.ConfigFileUsed()))
-			fmt.Fprintln(os.Stderr, "Error: ", err.Error())
 		}
+		DatabaseUrl = strings.Split(DatabaseUrl[5:], "?")[0]
 	}
 }
